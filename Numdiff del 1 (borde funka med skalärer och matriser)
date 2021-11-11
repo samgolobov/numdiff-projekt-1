@@ -1,0 +1,111 @@
+from numpy import *
+from scipy import linalg
+from scipy.linalg import expm
+from matplotlib.pyplot import *
+
+def RK4step(f,told,uold,h):
+    #B=array([[1/6],[1/3],[1/3],[1/6]])
+    
+    yprim1= f(told,uold)
+    yprim2 = f(told+0.5*h,uold+h*yprim1*0.5)
+    yprim3 = f(told+0.5*h,uold+h*yprim2*0.5)
+    yprim4 = f(told+h,uold+h*yprim3)
+    #Yprim=array([yprim1,yprim2,yprim3,yprim4])
+    if size(uold) == 1:
+        unew = (uold + h*((1/6)*yprim1+(1/3)*yprim2+(1/3)*yprim3+(1/6)*yprim4))
+    else:
+        unew = (uold + h*((1/6)*yprim1+(1/3)*yprim2+(1/3)*yprim3+(1/6)*yprim4))
+    return unew
+# Om du har en y0 som är en vector glöm ej att använda rätt storlek på lambd
+lambd = 1;
+lambd = array([[1,0],[0,1]])
+def f(t,y):
+    if size(lambd) == 1:
+        return lambd*y
+    else:
+        return lambd@y
+
+#unew = RK4step(f,0,array([[0,0]]).T,0.01)
+#unew = RK4step(f,0,1,0.01)
+
+def RK4Int(f,y0,t0,tf,N):
+    uold = y0
+    told = t0
+    h = (tf-t0)/N
+    approx = []
+    err = []
+    for i in range(N):
+        approx.append(uold)
+        utemp = RK4step(f,told,uold,h)
+        told=told+h
+        uold=utemp
+    return approx
+
+
+#approx = RK4Int(f,1,0,1,10)
+#approx = RK4Int(f,array([[1,2]]).T,0,1,10)
+
+def RK_errVSh(A,f,y0,t0,tf):
+    error = []
+    h = []
+    for i in range(7):
+        N = 2**(2+i)
+        approx = RK4Int(f,y0,t0,tf,N) 
+        if size(A) == 1:    
+            error.append(linalg.norm(approx[-1]-exp(A*tf)*y0))
+        else:
+            error.append(linalg.norm(approx[-1]-expm(A*tf)@y0))
+        h.append((tf-t0)/N)
+    loglog(h,error)
+    grid(True, which="both", ls="-")
+    return h,error
+
+#(t,y) = RK_errVSh(lambd,f,1,0,1)
+#RK_errVSh(lambd, f, array([[1,2]]).T, 0, 1)
+
+def RK34step(f,told,uold,h):
+    #B=array([[1/6],[1/3],[1/3],[1/6]])
+    
+    yprim1= f(told,uold)
+    yprim2 = f(told+0.5*h,uold+h*yprim1*0.5)
+    yprim3 = f(told+0.5*h,uold+h*yprim1*0.5)
+    yprim4 = f(told+h,uold+h*yprim1)
+    
+    zprim3 = f(told+h,uold-h*yprim1+2*h*yprim2)
+    
+    #Yprim=array([yprim1,yprim2,yprim3,yprim4])
+    
+    unew= uold + h*((1/6)*yprim1 + (1/3)*yprim2 + (1/3)*yprim3 + (1/6)*yprim4)
+    
+    err = linalg.norm((h/6)*(2*yprim2 + zprim3 - 2*yprim3 - yprim4)) #l_n+1
+    return unew,err
+
+def newstep(tol,err,errold,hold,k):
+    hnew=((tol/err)**(2/(3*k)))*((tol/errold)**(-1/(3*k)))*(hold)
+    return hnew
+
+def adaptiveRK34(f,t0,tf,y0,tol):
+    k = 4
+    hold = (abs(tf-t0)*tol**(1/4))/(100*(1+linalg.norm(f(t0,y0))))
+    uold = y0
+    errold = tol #r0
+    t=[]
+    y=[]
+    while t0<=tf:
+        (unew,err) = RK34step(f,t0,uold,hold)
+        h = newstep(tol,err,errold,hold,k)
+        y.append(uold)
+        t.append(t0)
+        uold = unew
+        errold=err
+        hold  = h
+        t0 = t0 + hold
+    
+    if t0 != tf:
+        hlast = tf-(t0-hold)
+        ulast = RK34step(f,(t0-hold),uold,hlast)[1]
+        y.append(ulast)
+        t.append(tf)
+    return t,y
+#adaptiveRK34(f, 0, 1, array([[1,2]]).T, 1e-6)
+#adaptiveRK34(f, 0, 1, 1, 1e-6)
