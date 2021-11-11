@@ -17,7 +17,7 @@ def RK4step(f,told,uold,h):
         unew = (uold + h*((1/6)*yprim1+(1/3)*yprim2+(1/3)*yprim3+(1/6)*yprim4))
     return unew
 # Om du har en y0 som är en vector glöm ej att använda rätt storlek på lambd
-lambd = 1;
+#lambd = 1;
 lambd = array([[1,0],[0,1]])
 def f(t,y):
     if size(lambd) == 1:
@@ -33,12 +33,12 @@ def RK4Int(f,y0,t0,tf,N):
     told = t0
     h = (tf-t0)/N
     approx = []
-    err = []
-    for i in range(N):
+    while told<tf:
         approx.append(uold)
         utemp = RK4step(f,told,uold,h)
         told=told+h
         uold=utemp
+    approx.append(uold)
     return approx
 
 
@@ -48,16 +48,17 @@ def RK4Int(f,y0,t0,tf,N):
 def RK_errVSh(A,f,y0,t0,tf):
     error = []
     h = []
-    for i in range(7):
-        N = 2**(2+i)
+    if size(A) == 1:
+        truesol = exp(A*tf)*y0
+    else:
+        truesol = expm(A*tf)@y0
+    for i in range(12):
+        N = 2**(i+2)
         approx = RK4Int(f,y0,t0,tf,N) 
-        if size(A) == 1:    
-            error.append(linalg.norm(approx[-1]-exp(A*tf)*y0))
-        else:
-            error.append(linalg.norm(approx[-1]-expm(A*tf)@y0))
+        error.append(linalg.norm(approx[-1]-exp(A*tf)*y0))
         h.append((tf-t0)/N)
     loglog(h,error)
-    grid(True, which="both", ls="-")
+    grid(True, 'both')
     return h,error
 
 #(t,y) = RK_errVSh(lambd,f,1,0,1)
@@ -103,9 +104,18 @@ def adaptiveRK34(f,t0,tf,y0,tol):
     
     if t0 != tf:
         hlast = tf-(t0-hold)
-        ulast = RK34step(f,(t0-hold),uold,hlast)[1]
+        ulast = RK34step(f,(t0-hold),uold,hlast)[0]
         y.append(ulast)
         t.append(tf)
     return t,y
-#adaptiveRK34(f, 0, 1, array([[1,2]]).T, 1e-6)
+adaptiveRK34(f, 0, 1, array([[1,2]]).T, 1e-6)
 #adaptiveRK34(f, 0, 1, 1, 1e-6)
+
+def PltMultiDimODE():
+    (t,y)  = adaptiveRK34(f, 0, 1, array([[1,2]]).T, 1e-6)
+    Y = []
+    for p in range(int(size(y)/len(y))):    
+        for i in range(len(y)):
+            Y.append(y[i][p])
+        loglog(t,Y)
+        Y = []
