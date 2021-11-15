@@ -3,6 +3,7 @@ import numpy as np
 from scipy import linalg
 from scipy.linalg import expm
 from matplotlib.pyplot import *
+from scipy.integrate import solve_ivp
 
 def RK4step(f,told,uold,h):
 
@@ -64,32 +65,34 @@ def RK34step(f,told,uold,h):
     return unew,err
 
 def newstep(tol,err,errold,hold,k):
-    hnew=(tol/err)**(2/3/k) * (tol/errold)**(-1/3/k) * hold
+    hnew=(tol/err)**(2/(3*k)) * (tol/errold)**(-1/(3*k)) * hold
     return hnew
 
-def adaptiveRK34(f,t0,tf,y0,tol=1e-8): #Ny version
+def adaptiveRK34(f,t0,tf,y0,tol=1e-6):
     k=4
-    hold=abs(tf-t0)*tol**(1/4)/(100*(1+linalg.norm(f(t0,y0))))
+    hold=(abs(tf-t0)*tol**(1/4))/(100*(1+linalg.norm(f(t0,y0))))
     h=hold
     told=t0
     uold=y0
     errold=tol #r0
     t=[]
     y=[]
+    N=0
     while (told+h)<tf:
         unew,err=RK34step(f,told,uold,h)
         uold = unew
         t.append(told)
         y.append(uold)
         told=told+h
-        h=newstep(tol,err,errold,hold,k)
+        h=newstep(tol,err,errold,h,k)
         errold=err
+        N+=1
     hlast=tf-told
     ulast,err=RK34step(f,told,uold,hlast)
     y.append(ulast)
     t.append(tf)
-    
-    return np.array(t),np.stack(y) #Stack fixar outputen så att det blir en enda array för Lotka. 
+    N+=1
+    return np.array(t),np.stack(y), N #Stack fixar outputen så att det blir en enda array för Lotka. N är antal steg.
 
 #2.1
 def LotkaVolterra(t,y):
@@ -109,3 +112,36 @@ figure()
 plot(t,y[:,0]) # Plottar x mot t
 figure()
 plot(t,y[:,1]) # Plottar y mot t
+
+3.1
+def vanderPol(t,y,my):
+    y1=y[0]
+    y2=y[1]
+    dydt=[y2, (my*(1-(y1**2))*y2)-y1]
+    return np.array(dydt)
+
+E6 = np.array([10,15,22,33,47,68,100,150,220,330,470,680,1000])
+y0=[2,0]
+t0=0
+N=[]
+
+for i in E6:
+    my = i
+    tf=0.7*my
+    f = lambda t,y: vanderPol(t,y,my=my)
+    t, y, n = adaptiveRK34(f,t0,tf,y0,1e-8)
+    N.append(n)
+
+loglog(E6,N)
+loglog(E6,N,'.')
+grid(True,'both')
+xlabel(r'$\mu$')
+ylabel('N')
+#figure()
+#plot(y[:,0],y[:,1],'.')
+#figure()
+#plot(t,y[:,0])
+#figure()
+#plot(t,y[:,1])
+
+#%matplotlib qt för interactive plot
