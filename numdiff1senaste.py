@@ -107,7 +107,7 @@ def LotkaVolterra(t,y):
     dydt = [a*y[0] - b*y[0]*y[1], c*y[0]*y[1]-d*y[1]]
     return np.array(dydt)
 
-#f = lambda t,y: LotkaVolterra(t,y)
+f = lambda t,y: LotkaVolterra(t,y)
 
 #y0=np.array([1,1])
 y0=[1,0.33]
